@@ -35,13 +35,22 @@ def validate_source(source: str, rules):
     return {"ast_error": result}
 
 
+def _read_source(path):
+    data = path.read_bytes()
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    # 国内常见编辑器会保存为 GBK，GB18030 是其超集；不静默替换非法字符。
+    return data.decode("gb18030")
+
+
 def validate_file(path, rules):
     selected = _selected(rules)
     path = Path(path)
     if not path.is_absolute() or path.suffix.lower() != ".cpp":
         raise ValueError("源码路径必须是 .cpp 文件的绝对路径")
-    # utf-8-sig 同时支持普通 UTF-8 和带 BOM 的 UTF-8；不静默替换非法字符。
-    return validate_source(path.read_text(encoding="utf-8-sig"), selected)
+    return validate_source(_read_source(path), selected)
 
 
 def AST_validation(code_id, list):

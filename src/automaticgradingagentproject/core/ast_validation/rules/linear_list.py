@@ -1,7 +1,7 @@
 """专题一的语法结构启发式规则；识别边界见 README。"""
 import re
 
-from ..enums import AstRuleEnum as R
+from ..enums import AstRuleEnum
 from ..parser import nodes, text
 
 LOOPS = ("for_statement", "while_statement", "do_statement", "for_range_loop")
@@ -17,11 +17,19 @@ def function_name(fn):
     decl = fn.child_by_field_name("declarator")
     while decl is not None and decl.type != "function_declarator":
         decl = decl.child_by_field_name("declarator")
-    return compact(decl.child_by_field_name("declarator")) if decl else ""
+    # 类外定义的 Sorter::quickSort 只保留最后的函数名。
+    return compact(decl.child_by_field_name("declarator")).split("::")[-1] if decl else ""
+
+
+def _call_name(callee):
+    name = compact(callee)
+    if name.startswith("this->"):
+        name = name[len("this->"):]
+    return name.split("::")[-1]
 
 
 def calls(node):
-    return [compact(n.child_by_field_name("function")) for n in nodes(node, "call_expression")]
+    return [_call_name(n.child_by_field_name("function")) for n in nodes(node, "call_expression")]
 
 
 def _visible(node, site):
@@ -149,8 +157,8 @@ def require_heap_sort(root):
 
 
 CHECKS = {
-    R.TOPIC1_NO_STD_SORT: no_std_sort,
-    R.TOPIC1_REQUIRE_SELF_LINEAR_LIST: require_linear_list,
-    R.TOPIC1_REQUIRE_SELF_QUICK_SORT: require_quick_sort,
-    R.TOPIC1_REQUIRE_SELF_HEAP_SORT: require_heap_sort,
+    AstRuleEnum.TOPIC1_NO_STD_SORT: no_std_sort,
+    AstRuleEnum.TOPIC1_REQUIRE_SELF_LINEAR_LIST: require_linear_list,
+    AstRuleEnum.TOPIC1_REQUIRE_SELF_QUICK_SORT: require_quick_sort,
+    AstRuleEnum.TOPIC1_REQUIRE_SELF_HEAP_SORT: require_heap_sort,
 }

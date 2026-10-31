@@ -71,6 +71,79 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(count(code, R.TOPIC1_REQUIRE_SELF_QUICK_SORT), 1)
         self.assertEqual(count(code, R.TOPIC1_REQUIRE_SELF_HEAP_SORT), 1)
 
+    def test_member_function_quick_sort(self):
+        out_of_class = '''
+        class Sorter {
+        public:
+            int partition(int a[], int low, int high);
+            void quickSort(int a[], int low, int high);
+        };
+        int Sorter::partition(int a[], int low, int high) {
+            int pivot = a[low], i = low, j = high;
+            while (i < j) {
+                while (i < j && a[j] >= pivot) --j;
+                a[i] = a[j];
+                while (i < j && a[i] <= pivot) ++i;
+                a[j] = a[i];
+            }
+            a[i] = pivot;
+            return i;
+        }
+        void Sorter::quickSort(int a[], int low, int high) {
+            if (low < high) {
+                int p = partition(a, low, high);
+                quickSort(a, low, p - 1);
+                quickSort(a, p + 1, high);
+            }
+        }'''
+        this_calls = '''
+        class Sorter {
+        public:
+            int partition(int a[], int low, int high) {
+                int pivot = a[low], i = low, j = high;
+                while (i < j) {
+                    while (i < j && a[j] >= pivot) --j;
+                    a[i] = a[j];
+                    while (i < j && a[i] <= pivot) ++i;
+                    a[j] = a[i];
+                }
+                a[i] = pivot;
+                return i;
+            }
+            void quickSort(int a[], int low, int high) {
+                if (low < high) {
+                    int p = this->partition(a, low, high);
+                    this->quickSort(a, low, p - 1);
+                    this->quickSort(a, p + 1, high);
+                }
+            }
+        };'''
+        for code in (out_of_class, this_calls):
+            with self.subTest(head=code.strip()[:30]):
+                self.assertEqual(count(code, R.TOPIC1_REQUIRE_SELF_QUICK_SORT), 0)
+
+    def test_member_function_heap_sort(self):
+        code = '''
+        class Heap {
+        public:
+            void sift(int a[], int n, int i);
+            void heapSort(int a[], int n);
+        };
+        void Heap::sift(int a[], int n, int i) {
+            int child = 2 * i;
+            while (child <= n) {
+                if (child + 1 <= n && a[child + 1] > a[child]) ++child;
+                if (a[child] <= a[i]) return;
+                int t = a[i]; a[i] = a[child]; a[child] = t;
+                i = child; child = 2 * i;
+            }
+        }
+        void Heap::heapSort(int a[], int n) {
+            for (int i = n / 2; i >= 1; --i) sift(a, n, i);
+            for (int i = n; i > 1; --i) { int t = a[1]; a[1] = a[i]; a[i] = t; sift(a, i - 1, 1); }
+        }'''
+        self.assertEqual(count(code, R.TOPIC1_REQUIRE_SELF_HEAP_SORT), 0)
+
     def test_iterative_quick_sort(self):
         code = FIXTURE.read_text().split("void order_a")[0] + '''
         void iterative(int a[], int n) {
@@ -141,6 +214,12 @@ class ValidationTests(unittest.TestCase):
             path.write_bytes(b"\xff\xfe")
             with self.assertRaises(UnicodeDecodeError):
                 validate_file(path, TOPIC1)
+
+    def test_gbk_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "gbk.cpp"
+            path.write_bytes("// 中文注释\nstruct Node { int value; Node *next; };\n".encode("gb18030"))
+            self.assertEqual(validate_file(path, [R.TOPIC1_REQUIRE_SELF_LINEAR_LIST])["ast_error"]["count"], 0)
 
 
 if __name__ == "__main__":

@@ -41,7 +41,6 @@ def _read_source(path):
         return data.decode("utf-8-sig")
     except UnicodeDecodeError:
         pass
-    # 国内常见编辑器会保存为 GBK，GB18030 是其超集；不静默替换非法字符。
     return data.decode("gb18030")
 
 
@@ -54,9 +53,10 @@ def validate_file(path, rules):
 
 
 def AST_validation(code_id, list):
-    """按数据库 Code.id 查找 .cpp，返回选定规则的错误次数。"""
-    selected = _selected(list)
-    if not isinstance(code_id, int) or isinstance(code_id, bool) or code_id <= 0:
-        raise ValueError("code_id 必须是正整数")
-    from .repository import source_path
-    return validate_file(source_path(code_id), selected)
+    # """按数据库 Code.id 查找 .cpp，返回选定规则的错误次数。"""
+    # selected = _selected(list)
+    # if not isinstance(code_id, int) or isinstance(code_id, bool) or code_id <= 0:
+    #     raise ValueError("code_id 必须是正整数")
+    # from .repository import source_path
+    # return validate_file(source_path(code_id), selected)
+    raise NotImplementedError()

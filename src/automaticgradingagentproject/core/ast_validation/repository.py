@@ -1,4 +1,4 @@
-"""只读接入现有数据库模型；环境变量覆盖仅作用于本模块。"""
+"""只读接入现有数据库模型（只读，不更改数据库）；环境变量覆盖仅作用于本模块(方便临时替换数据库连接地址)"""
 import os
 
 
@@ -8,7 +8,7 @@ def source_path(code_id):
     from automaticgradingagentproject.core.database import SessionLocal
     from automaticgradingagentproject.models.marking import Code
 
-    url = os.environ.get("AST_DATABASE_URL")
+    url = os.environ.get("AST_DATABASE_URL") #查询是否有环境变量地址
     engine = create_engine(url) if url else None
     try:
         with Session(engine) if engine is not None else SessionLocal() as session:

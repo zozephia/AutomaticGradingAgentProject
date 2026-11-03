@@ -1,4 +1,4 @@
-"""Tree-sitter CST 的命名节点视图；不执行或编译学生代码。"""
+"""Tree-sitter CST 的命名节点视图"""
 from tree_sitter import Language, Parser
 import tree_sitter_cpp
 

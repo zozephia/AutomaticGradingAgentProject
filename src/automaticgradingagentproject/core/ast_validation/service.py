@@ -53,10 +53,10 @@ def validate_file(path, rules):
 
 
 def AST_validation(code_id, list):
-    # """按数据库 Code.id 查找 .cpp，返回选定规则的错误次数。"""
-    # selected = _selected(list)
-    # if not isinstance(code_id, int) or isinstance(code_id, bool) or code_id <= 0:
-    #     raise ValueError("code_id 必须是正整数")
-    # from .repository import source_path
-    # return validate_file(source_path(code_id), selected)
-    raise NotImplementedError()
+    """按数据库 Code.id 查找 .cpp，返回选定规则的错误次数。"""
+    selected = _selected(list)
+    if not isinstance(code_id, int) or isinstance(code_id, bool) or code_id <= 0:
+        raise ValueError("code_id 必须是正整数")
+    from .repository import source_path
+    return validate_file(source_path(code_id), selected)
+    # raise NotImplementedError()

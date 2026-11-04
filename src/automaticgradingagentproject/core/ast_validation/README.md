@@ -8,7 +8,7 @@
 
 ```powershell
 uv sync --locked
-uv run pytest -q src/automaticgradingagentproject/core/tests/AST
+uv run pytest -q src/automaticgradingagentproject/tests/AST
 ```
 
 如果手头没有数据库，可以直接体验一条树规则。在仓库根目录运行 `uv run python`，然后执行：
@@ -58,7 +58,7 @@ result = AST_validation(code_id=27)  # 27 为示例，使用实际上传记录�
 | 三 | `require_self_dijkstra` | 距离初始化、扫描未访问点取最短距离或使用最小优先队列、条件松弛并写回同一目标距离 |
 | 三 | `require_self_merge_sort` | 比较两个区间的元素并写入同一输出序列，结合递归分段或迭代倍增区间宽度 |
 
-各专题实现位于 [linear_list.py](rules/linear_list.py)、[tree.py](rules/tree.py) 和 [graph.py](rules/graph.py)。测试与三个专题的 C++ 样例都在 [core/tests/AST](../tests/AST)。
+各专题实现位于 [linear_list.py](rules/linear_list.py)、[tree.py](rules/tree.py) 和 [graph.py](rules/graph.py)。测试与三个专题的 C++ 样例都在 [tests/AST](../../tests/AST)。
 
 ## 如何解释结果
 

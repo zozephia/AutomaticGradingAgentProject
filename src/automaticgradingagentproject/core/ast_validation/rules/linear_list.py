@@ -1,48 +1,10 @@
 """专题一的语法结构启发式规则；识别边界见 README。"""
 import re
 
-from ...enums.ast_rule_enum import AstRuleEnum
-from ..parser import nodes, text
+from ..parser import LOOPS, call_name, calls, compact, function_name, nodes, text, visible_at
 
-LOOPS = ("for_statement", "while_statement", "do_statement", "for_range_loop")
 SORTS = {"sort", "stable_sort", "partial_sort", "partial_sort_copy", "nth_element",
          "qsort", "make_heap", "sort_heap", "push_heap", "pop_heap"}
-
-
-def compact(node):
-    return re.sub(r"\s+", "", text(node))
-
-
-def function_name(fn):
-    decl = fn.child_by_field_name("declarator")
-    while decl is not None and decl.type != "function_declarator":
-        decl = decl.child_by_field_name("declarator")
-    # 类外定义的 Sorter::quickSort 只保留最后的函数名。
-    return compact(decl.child_by_field_name("declarator")).split("::")[-1] if decl else ""
-
-
-def _call_name(callee):
-    name = compact(callee)
-    if name.startswith("this->"):
-        name = name[len("this->"):]
-    return name.split("::")[-1]
-
-
-def calls(node):
-    return [_call_name(n.child_by_field_name("function")) for n in nodes(node, "call_expression")]
-
-
-def _visible(node, site):
-    # using / namespace alias 必须在调用之前，且位于其祖先作用域。
-    if node.start_byte >= site.start_byte:
-        return False
-    scope = node.parent
-    parent = site
-    while parent is not None:
-        if parent == scope:
-            return True
-        parent = parent.parent
-    return False
 
 
 def no_std_sort(root):
@@ -52,7 +14,7 @@ def no_std_sort(root):
     for call in nodes(root, "call_expression"):
         callee = compact(call.child_by_field_name("function")).lstrip(":")
         callee = re.sub(r"<.*>$", "", callee)
-        using = [compact(n) for n in directives if _visible(n, call)]
+        using = [compact(n) for n in directives if visible_at(n, call)]
         for directive in using:
             match = re.fullmatch(r"namespace(\w+)=(std(?:::\w+)*);", directive)
             if match and callee.startswith(match[1] + "::"):
@@ -120,8 +82,8 @@ def require_quick_sort(root):
             # 快排先分区再递归；归并排序先递归再合并，不能复用同一证据。
             sites = nodes(fn, "call_expression")
             first_recursive = next(call.start_byte for call in sites
-                                   if _call_name(call.child_by_field_name("function")) == name)
-            if any(_call_name(call.child_by_field_name("function")) in partitions
+                                   if call_name(call.child_by_field_name("function")) == name)
+            if any(call_name(call.child_by_field_name("function")) in partitions
                    for call in sites if call.start_byte < first_recursive):
                 return 0
             if any(loop.end_byte <= first_recursive and _partition(loop) for loop in nodes(fn, *LOOPS)):
@@ -161,11 +123,3 @@ def require_heap_sort(root):
         if sum(_heap_adjust(loop) for loop in loops) >= 2 and _writes_elements(fn):
             return 0
     return 1
-
-
-CHECKS = {
-    AstRuleEnum.TOPIC1_NO_STD_SORT: no_std_sort,
-    AstRuleEnum.TOPIC1_REQUIRE_SELF_LINEAR_LIST: require_linear_list,
-    AstRuleEnum.TOPIC1_REQUIRE_SELF_QUICK_SORT: require_quick_sort,
-    AstRuleEnum.TOPIC1_REQUIRE_SELF_HEAP_SORT: require_heap_sort,
-}

@@ -37,7 +37,7 @@ result = AST_validation(code_id=27)  # 27 为示例，使用实际上传记录�
 
 数据库连接默认使用项目的 `SessionLocal`。本地联调可将 `AST_DATABASE_URL` 指向已有数据库，例如 `sqlite:///C:/path/to/grading.db`。仓库无需包含数据库文件。缺少数据库或源码、编码无法识别、源码语法不能解析时会抛出异常，由上层处理。数据库配置中拼错的已知专题前缀规则也会报错。
 
-本地调试另有 `validate_source(source, rules)`、`validate_file(absolute_path, rules)`，可以显式选择规则。共享枚举定义在 [core/enums/ast_rule_enum.py](../enums/ast_rule_enum.py)，原 AST 模块的枚举导入路径保留为兼容别名。
+本地调试另有 `validate_source(source, rules)`、`validate_file(absolute_path, rules)`，可以显式选择规则。枚举统一定义在 [core/enums/ast_rule_enum.py](../enums/ast_rule_enum.py)。要看某条规则具体执行哪个函数，查 [rules/__init__.py](rules/__init__.py) 的 `CHECKS` 表即可。
 
 ## 三个专题检查什么
 

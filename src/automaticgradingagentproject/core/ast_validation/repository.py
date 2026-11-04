@@ -6,8 +6,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..enums.ast_rule_enum import AstRuleEnum
 from ...models.marking import Code, Rule
+from .rules import RULE_BY_NAME
 
 
 def _read_submission(session, code_id):
@@ -17,15 +17,11 @@ def _read_submission(session, code_id):
     names = session.scalars(select(Rule.name).where(Rule.topic_id == record.topic_id).order_by(Rule.id))
     rules = []
     for name in names:
-        if name in AstRuleEnum.__members__:
-            rules.append(AstRuleEnum[name])
-        else:
-            try:
-                rules.append(AstRuleEnum(name))
-            except ValueError:
-                if name.startswith(("topic1.", "topic2.", "topic3.", "TOPIC1_", "TOPIC2_", "TOPIC3_")):
-                    raise ValueError(f"专题配置了未知 AST 规则：{name}") from None
-                # 同一个专题也可配置文档和沙盒规则。
+        if name in RULE_BY_NAME:
+            rules.append(RULE_BY_NAME[name])
+        elif name.startswith(("topic1.", "topic2.", "topic3.", "TOPIC1_", "TOPIC2_", "TOPIC3_")):
+            raise ValueError(f"专题配置了未知 AST 规则：{name}")
+        # 同一个专题也可配置文档和沙盒规则。
     return record.source_code, rules
 
 

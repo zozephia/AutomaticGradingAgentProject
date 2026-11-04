@@ -1,10 +1,7 @@
 """专题二：词条、二叉树节点、旋转维护与有序容器。"""
 import re
 
-from ...enums.ast_rule_enum import AstRuleEnum as R
-from ..parser import nodes, text
-from .linear_list import compact, function_name, _visible
-from .records import members
+from ..parser import compact, function_name, members, nodes, text, visible_at
 
 LEFT = {"left", "lchild", "leftchild", "lc", "l"}
 RIGHT = {"right", "rchild", "rightchild", "rc", "r"}
@@ -90,10 +87,10 @@ def no_map_as_core(root):
         site = decl
         for alias in reversed(aliases):
             name = alias.child_by_field_name("name") or alias.child_by_field_name("declarator")
-            if typ == text(name) and _visible(alias, site):
+            if typ == text(name) and visible_at(alias, site):
                 typ = compact(alias.child_by_field_name("type"))
                 site = alias
-        imports = {compact(d) for d in directives if _visible(d, site)}
+        imports = {compact(d) for d in directives if visible_at(d, site)}
         for directive in imports:
             match = re.fullmatch(r"namespace(\w+)=std;", directive)
             if match and typ.startswith(match[1] + "::"):
@@ -112,12 +109,3 @@ def no_map_as_core(root):
             if not custom_tree or re.search("dict|vocab|entries|wordmap|wordset", name):
                 count += 1
     return count
-
-
-CHECKS = {
-    R.TOPIC2_REQUIRE_TERM_STRUCT: require_term,
-    R.TOPIC2_REQUIRE_BST_NODE_STRUCT: require_bst,
-    R.TOPIC2_REQUIRE_AVL_NODE_STRUCT: require_avl,
-    R.TOPIC2_REQUIRE_AVL_BALANCE_MAINTENANCE: require_maintenance,
-    R.TOPIC2_NO_STD_MAP_AS_CORE: no_map_as_core,
-}

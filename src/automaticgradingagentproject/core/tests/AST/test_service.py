@@ -46,6 +46,6 @@ def test_missing_database_stays_absent(tmp_path, monkeypatch):
     assert not path.exists()
 
 def test_every_shared_rule_has_a_check():
-    from automaticgradingagentproject.core.ast_validation.service import CHECKS
+    from automaticgradingagentproject.core.ast_validation.rules import CHECKS
 
     assert set(CHECKS) == set(R)

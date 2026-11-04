@@ -1,10 +1,7 @@
 """专题三：图的表示、最短路及两种手写排序的结构特征。"""
 import re
 
-from ...enums.ast_rule_enum import AstRuleEnum as R
-from ..parser import nodes, text
-from .linear_list import LOOPS, calls, compact, function_name, no_std_sort, require_quick_sort
-from .records import members
+from ..parser import LOOPS, calls, compact, function_name, members, nodes, text
 
 
 def require_adjacency_list(root):
@@ -211,12 +208,3 @@ def require_merge_sort(root):
                 if mergers.intersection(calls(loop)) or _merges_runs(loop):
                     return 0
     return 1
-
-
-CHECKS = {
-    R.TOPIC3_REQUIRE_ADJACENCY_LIST: require_adjacency_list,
-    R.TOPIC3_REQUIRE_SELF_DIJKSTRA: require_dijkstra,
-    R.TOPIC3_REQUIRE_SELF_QUICK_SORT: require_quick_sort,
-    R.TOPIC3_REQUIRE_SELF_MERGE_SORT: require_merge_sort,
-    R.TOPIC3_NO_STD_SORT: no_std_sort,
-}

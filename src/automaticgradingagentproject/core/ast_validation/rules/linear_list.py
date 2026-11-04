@@ -117,7 +117,14 @@ def require_quick_sort(root):
         invoked = calls(fn)
         # 常见递归快排：分区结构（内联或辅助函数）+ 两个子区间递归调用。
         if name and invoked.count(name) >= 2 and nodes(fn, "if_statement"):
-            if _partition(fn) or partitions.intersection(invoked):
+            # 快排先分区再递归；归并排序先递归再合并，不能复用同一证据。
+            sites = nodes(fn, "call_expression")
+            first_recursive = next(call.start_byte for call in sites
+                                   if _call_name(call.child_by_field_name("function")) == name)
+            if any(_call_name(call.child_by_field_name("function")) in partitions
+                   for call in sites if call.start_byte < first_recursive):
+                return 0
+            if any(loop.end_byte <= first_recursive and _partition(loop) for loop in nodes(fn, *LOOPS)):
                 return 0
         # 常见显式栈快排：循环分区、压栈与出栈。只识别成员调用栈形式。
         if nodes(fn, *LOOPS) and (_partition(fn) or partitions.intersection(invoked)):

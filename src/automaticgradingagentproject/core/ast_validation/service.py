@@ -3,9 +3,9 @@ from pathlib import Path
 from ..enums.ast_rule_enum import AstRuleEnum
 from ..enums.rule_type_enum import RuleTypeEnum
 from .parser import parse
-from .rules import linear_list, tree
+from .rules import graph, linear_list, tree
 
-CHECKS = {**linear_list.CHECKS, **tree.CHECKS}
+CHECKS = {**linear_list.CHECKS, **tree.CHECKS, **graph.CHECKS}
 
 
 def _selected(items):

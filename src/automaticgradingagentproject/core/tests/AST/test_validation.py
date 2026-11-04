@@ -169,6 +169,10 @@ class TestValidation:
         with pytest.raises(SourceParseError):
             validate_source("int main( {", TOPIC1)
 
+    def test_missing_semicolon_reports_parse_error(self):
+        with pytest.raises(SourceParseError, match="第 1 行"):
+            validate_source("struct Example {int field};", TOPIC1)
+
     def test_bad_paths(self):
         with pytest.raises(ValueError):
             validate_file("relative.cpp", TOPIC1)

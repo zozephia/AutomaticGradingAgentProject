@@ -28,6 +28,8 @@ def test_graph_example():
     (GRAPH.replace("d[start] = 0;", ""), DIJKSTRA, 1),
     (GRAPH.replace("!used[i] && (u < 0 || d[i] < d[u])", "!used[i]"), DIJKSTRA, 1),
     (GRAPH.replace("d[e.to] = d[u] + e.weight", "d[e.to] = 0"), DIJKSTRA, 1),
+    (GRAPH.replace("used[u] = true;", ""), DIJKSTRA, 1),
+    (GRAPH.replace("d[u] + e.weight", "e.to + e.weight"), DIJKSTRA, 1),
     (MERGE, QUICKSORT, 1),
     ("void mergeSort(){}", MERGESORT, 1),
     (GRAPH[GRAPH.index("void partition_sort"):], MERGESORT, 1),

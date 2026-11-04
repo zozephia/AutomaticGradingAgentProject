@@ -18,6 +18,7 @@ def require_adjacency_list(root):
             receiver = callee.child_by_field_name("argument")
             if receiver.type == "subscript_expression":
                 appended.add(compact(receiver.child_by_field_name("argument")).split(".")[-1])
+    traversed = {_indexed(loop.child_by_field_name("right")) for loop in nodes(root, "for_range_loop")}
     for decl in nodes(root, "declaration", "field_declaration", "parameter_declaration"):
         typ = compact(decl.child_by_field_name("type"))
         if not re.search(lists, typ):
@@ -28,7 +29,7 @@ def require_adjacency_list(root):
                 continue
             name = text(names[0])
             collection = len(re.findall(lists, typ)) >= 2 or var.type == "array_declarator"
-            if collection and (name in appended or name.lower() in adjacent):
+            if collection and (name in appended or name in traversed or name.lower() in adjacent):
                 # 逐行初始化为定长向量是常见的邻接矩阵。
                 if not re.search(lists, compact(var)):
                     return 0
@@ -78,7 +79,7 @@ def _initialized(fn, dist, before):
             if compact(var.child_by_field_name("declarator")) != dist:
                 continue
             args = var.child_by_field_name("value") or var.child_by_field_name("parameters")
-            if args is not None and len(args.named_children) >= 2:
+            if args is not None and len(args.named_children) >= 2 and compact(args.named_children[1]) != "0":
                 return True
     return False
 
@@ -86,11 +87,19 @@ def _initialized(fn, dist, before):
 def _selects_min(fn, loop, dist, before):
     # 密集图：在松弛之前比较候选距离，并从未访问候选中选点。
     guards = [g for g in nodes(loop, "if_statement") if g.start_byte < before]
+    marked = {_indexed(target) for target, value in _updates(loop) if compact(value) in {"true", "1"}}
     for guard in guards:
         cond = guard.child_by_field_name("condition")
-        if any(_indexed(s) == dist for s in nodes(cond, "subscript_expression")):
-            if ("!" in compact(cond) or "==false" in compact(cond) or "==0" in compact(cond)) and _updates(guard):
-                if any(text(op.child_by_field_name("operator")) in {"<", ">"} for op in nodes(cond, "binary_expression")):
+        for flag in nodes(cond, "subscript_expression"):
+            if _indexed(flag) not in marked:
+                continue
+            flag_test = compact(flag.parent)
+            if flag_test not in {"!" + compact(flag), compact(flag) + "==false", compact(flag) + "==0"}:
+                continue
+            for cmp in nodes(cond, "binary_expression"):
+                if text(cmp.child_by_field_name("operator")) not in {"<", ">"}:
+                    continue
+                if any(_indexed(s) == dist for s in nodes(cmp, "subscript_expression")) and _updates(guard):
                     return True
     # 稀疏图：同一最小优先队列取队首并出队，随后按距离或访问标记跳过旧记录。
     invoked = set(calls(loop))
@@ -98,12 +107,26 @@ def _selects_min(fn, loop, dist, before):
         typ = compact(decl.child_by_field_name("type"))
         if "priority_queue<" in typ and "greater<" in typ:
             name = compact(decl.child_by_field_name("declarator"))
-            if {name + ".top", name + ".pop"} <= invoked and any(nodes(g, "continue_statement") for g in guards):
+            skips_old = any(nodes(g, "continue_statement") and any(
+                _indexed(s) in (marked | {dist}) for s in nodes(g.child_by_field_name("condition"), "subscript_expression")
+            ) for g in guards)
+            if {name + ".top", name + ".pop"} <= invoked and skips_old:
                 return True
     return False
 
 
+def _queue_costs(loop):
+    costs = set()
+    for init in nodes(loop, "init_declarator"):
+        binding = init.child_by_field_name("declarator")
+        if binding.type == "structured_binding_declarator" and binding.named_children:
+            if compact(init.child_by_field_name("value")).endswith(".top()"):
+                costs.add(text(binding.named_children[0]))
+    return costs
+
+
 def _relaxations(loop):
+    queue_costs = _queue_costs(loop)
     for guard in nodes(loop, "if_statement"):
         cond = guard.child_by_field_name("condition")
         for target, value in _updates(guard.child_by_field_name("consequence")):
@@ -122,7 +145,10 @@ def _relaxations(loop):
                                       if init.start_byte < guard.start_byte
                                       and compact(init.child_by_field_name("declarator")) == text(value))
                 if any(expr is not None and expr.type == "binary_expression"
-                       and text(expr.child_by_field_name("operator")) == "+" for expr in candidates):
+                       and text(expr.child_by_field_name("operator")) == "+"
+                       and (any(_indexed(s) == dist for s in nodes(expr, "subscript_expression"))
+                            or any(text(i) in queue_costs for i in nodes(expr, "identifier")))
+                       for expr in candidates):
                     yield dist, guard.start_byte
 
 
@@ -133,6 +159,21 @@ def require_dijkstra(root):
                 if _initialized(fn, dist, loop.start_byte) and _selects_min(fn, loop, dist, before):
                     return 0
     return 1
+
+
+def _destinations(arm, source):
+    destinations = set()
+    for target, value in _updates(arm):
+        reads = {compact(n).replace("++", "") for n in nodes(value, "subscript_expression")}
+        if compact(source) in reads and _indexed(target):
+            destinations.add(_indexed(target))
+    for call in nodes(arm, "call_expression"):
+        callee = call.child_by_field_name("function")
+        if text(callee.child_by_field_name("field")) == "push_back":
+            reads = nodes(call.child_by_field_name("arguments"), "subscript_expression")
+            if any(compact(n).replace("++", "") == compact(source) for n in reads):
+                destinations.add(compact(callee.child_by_field_name("argument")))
+    return destinations
 
 
 def _merges_runs(block):
@@ -148,21 +189,9 @@ def _merges_runs(block):
                 left, right = (nodes(cmp.child_by_field_name(side), "subscript_expression") for side in ("left", "right"))
                 if not left or not right or compact(left[0]) == compact(right[0]):
                     continue
-                def destinations(arm, source):
-                    destinations = set()
-                    for target, value in _updates(arm):
-                        reads = {compact(n).replace("++", "") for n in nodes(value, "subscript_expression")}
-                        if compact(source) in reads and _indexed(target):
-                            destinations.add(_indexed(target))
-                    for call in nodes(arm, "call_expression"):
-                        callee = call.child_by_field_name("function")
-                        if text(callee.child_by_field_name("field")) == "push_back":
-                            reads = nodes(call.child_by_field_name("arguments"), "subscript_expression")
-                            if any(compact(n).replace("++", "") == compact(source) for n in reads):
-                                destinations.add(compact(callee.child_by_field_name("argument")))
-                    return destinations
                 yes = branch.child_by_field_name("consequence")
-                if destinations(yes, left[0]) & destinations(alt, right[0]) or destinations(yes, right[0]) & destinations(alt, left[0]):
+                if (_destinations(yes, left[0]) & _destinations(alt, right[0])
+                        or _destinations(yes, right[0]) & _destinations(alt, left[0])):
                     return True
     return False
 

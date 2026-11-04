@@ -26,6 +26,12 @@ def nodes(node, *kinds):
 def parse(source: str):
     root = Parser(Language(tree_sitter_cpp.language())).parse(source.encode("utf-8")).root_node
     if root.has_error:
-        bad = next(n for n in walk(root) if n.type == "ERROR" or n.is_missing)
+        # 缺失的分号等标点是匿名节点，不能只遍历 named_children。
+        bad = root
+        while not (bad.is_error or bad.is_missing):
+            child = next((n for n in bad.children if n.has_error or n.is_missing), None)
+            if child is None:
+                break
+            bad = child
         raise SourceParseError(f"C++ 解析失败：第 {bad.start_point.row + 1} 行，第 {bad.start_point.column + 1} 字节列")
     return root

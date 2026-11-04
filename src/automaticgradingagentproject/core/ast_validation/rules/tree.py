@@ -96,8 +96,8 @@ def no_map_as_core(root):
         imports = {compact(d) for d in directives if _visible(d, site)}
         for directive in imports:
             match = re.fullmatch(r"namespace(\w+)=std;", directive)
-            if match:
-                typ = typ.removeprefix("::").replace(match[1] + "::", "std::", 1) if typ.startswith(match[1] + "::") else typ
+            if match and typ.startswith(match[1] + "::"):
+                typ = "std" + typ[len(match[1]):]
         match = re.match(r"^(?:::)?(std::)?(map|set)<", typ)
         if not match or not (match[1] or "usingnamespacestd;" in imports or f"usingstd::{match[2]};" in imports):
             continue
@@ -106,7 +106,10 @@ def no_map_as_core(root):
             if var.type not in {"identifier", "field_identifier"}:
                 continue
             # 有自己的树时仅报告显式命名为字典/词库的存储，避免将 visited 等辅助集合扣分。
-            if not custom_tree or re.search("dict|vocab|entries|wordmap|wordset", text(var), re.I):
+            name = text(var).lower()
+            if name in {"visited", "seen", "cache"}:
+                continue
+            if not custom_tree or re.search("dict|vocab|entries|wordmap|wordset", name):
                 count += 1
     return count
 

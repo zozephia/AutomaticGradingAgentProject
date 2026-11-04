@@ -22,9 +22,16 @@ def test_configured_rules_follow_submission_topic(tmp_path, monkeypatch):
                 db.add(Code(id=i, source_code=str(path.resolve()), content_hash=str(i), user_id="test", topic_id=topic))
             for name in [R.TOPIC1_NO_STD_SORT.name, R.TOPIC1_NO_STD_SORT.value, "format_error"]:
                 db.add(Rule(name=name, weight=1, topic_id=82))
+            for topic, fixture, rule in [(91, "topic2.cpp", R.TOPIC2_REQUIRE_AVL_NODE_STRUCT),
+                                         (67, "topic3.cpp", R.TOPIC3_REQUIRE_SELF_DIJKSTRA)]:
+                db.add(Code(id=topic, source_code=str(path.with_name(fixture).resolve()),
+                            content_hash=fixture, user_id="test", topic_id=topic))
+                db.add(Rule(name=rule.value, weight=1, topic_id=topic))
             db.commit()
         assert AST_validation(1) == {"ast_error": {"count": 0, R.TOPIC1_NO_STD_SORT.value: {"count": 0}}}
         assert AST_validation(2) == {"ast_error": {"count": 0}}
+        for code_id, rule in [(91, R.TOPIC2_REQUIRE_AVL_NODE_STRUCT), (67, R.TOPIC3_REQUIRE_SELF_DIJKSTRA)]:
+            assert AST_validation(code_id) == {"ast_error": {"count": 0, rule.value: {"count": 0}}}
         with pytest.raises(ValueError, match="源码记录不存在"):
             AST_validation(3)
     finally:
@@ -37,3 +44,8 @@ def test_missing_database_stays_absent(tmp_path, monkeypatch):
     with pytest.raises(FileNotFoundError):
         AST_validation(1)
     assert not path.exists()
+
+def test_every_shared_rule_has_a_check():
+    from automaticgradingagentproject.core.ast_validation.service import CHECKS
+
+    assert set(CHECKS) == set(R)

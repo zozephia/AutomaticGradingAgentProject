@@ -1,21 +1,44 @@
-"""只读接入现有数据库模型（只读，不更改数据库）；环境变量覆盖仅作用于本模块(方便临时替换数据库连接地址)"""
+"""读取源码路径及该提交所属专题配置的 AST 规则。"""
 import os
+from pathlib import Path
+
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+
+from ..database import SessionLocal
+from ..enums.ast_rule_enum import AstRuleEnum
+from ...models.marking import Code, Rule
 
 
-def source_path(code_id):
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-    from automaticgradingagentproject.core.database import SessionLocal
-    from automaticgradingagentproject.models.marking import Code
+def _read_submission(session, code_id):
+    record = session.get(Code, code_id)
+    if record is None:
+        raise ValueError(f"源码记录不存在：{code_id}")
+    names = session.scalars(select(Rule.name).where(Rule.topic_id == record.topic_id).order_by(Rule.id))
+    rules = []
+    for name in names:
+        if name in AstRuleEnum.__members__:
+            rules.append(AstRuleEnum[name])
+        else:
+            try:
+                rules.append(AstRuleEnum(name))
+            except ValueError:
+                if name.startswith(("topic1.", "topic2.", "topic3.", "TOPIC1_", "TOPIC2_", "TOPIC3_")):
+                    raise ValueError(f"专题配置了未知 AST 规则：{name}") from None
+                # 同一个专题也可配置文档和沙盒规则。
+    return record.source_code, rules
 
-    url = os.environ.get("AST_DATABASE_URL") #查询是否有环境变量地址
+
+def submission(code_id):
+    url = os.environ.get("AST_DATABASE_URL")
     engine = create_engine(url) if url else None
     try:
         with Session(engine) if engine is not None else SessionLocal() as session:
-            record = session.get(Code, code_id)
-            if record is None:
-                raise ValueError(f"源码记录不存在：{code_id}")
-            return record.source_code
+            db_url = session.get_bind().url
+            if db_url.get_backend_name() == "sqlite" and db_url.database not in (None, "", ":memory:"):
+                if not db_url.query.get("uri") and not Path(db_url.database).is_file():
+                    raise FileNotFoundError(f"数据库不存在：{db_url.database}")
+            return _read_submission(session, code_id)
     finally:
         if engine is not None:
             engine.dispose()

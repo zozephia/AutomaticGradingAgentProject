@@ -1,7 +1,7 @@
 """专题一的语法结构启发式规则；识别边界见 README。"""
 import re
 
-from ..enums import AstRuleEnum
+from ...enums.ast_rule_enum import AstRuleEnum
 from ..parser import nodes, text
 
 LOOPS = ("for_statement", "while_statement", "do_statement", "for_range_loop")

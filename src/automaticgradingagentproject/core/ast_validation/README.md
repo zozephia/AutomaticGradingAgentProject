@@ -60,6 +60,22 @@ result = AST_validation(code_id=27)  # 27 为示例，使用实际上传记录�
 
 各专题实现位于 [linear_list.py](rules/linear_list.py)、[tree.py](rules/tree.py) 和 [graph.py](rules/graph.py)。测试与三个专题的 C++ 样例都在 [tests/AST](../../tests/AST)。
 
+## 真实作业的验证结果
+
+2026-11-07 加入用户提供的两份原始作业，副本与原文件的 SHA-256 一致。
+对应回归测试在 [test_student_submissions.py](../../tests/AST/test_student_submissions.py)。
+
+| 作业 | 启用的检查 | 实际结果与源码对照 |
+| --- | --- | --- |
+| [studentScoreSystem.cpp](../../tests/AST/fixtures/studentScoreSystem.cpp) | 专题一全部 4 项 | 总次数 0。识别出顺序表、手写快排及堆排，未发现禁用的排序调用 |
+| [dictionary.cpp](../../tests/AST/fixtures/dictionary.cpp) | 词条、BST 节点、禁用 map/set 共 3 项 | 总次数 0。识别出词条及左右孩子指针，遍历用的辅助 vector 未触发禁用规则 |
+| 同一份 dictionary.cpp | 加上可选的 2 项 AVL 检查 | 总次数 2。节点没有高度或平衡因子，也没有旋转后的维护逻辑，与其 BST 实现一致 |
+
+两份原始作业均通过 C++17 编译器语法检查。回归测试还在源码的内存副本中清空快排或堆调整函数，
+以及将主函数中的快排调用替换为 `std::sort`，这三种修改均被对应规则检出。
+临时数据库测试验证了 `AST_validation(code_id)` 对真实作业的处理，以及 BST/AVL 配置切换后的结果。
+这些样例表明目前的结构检查适用于这两份作业的写法，算法输出与字典操作的正确性仍需运行测试验证。
+
 ## 如何解释结果
 
 检查器使用 Tree-sitter 的语法节点。它检查单个源码文件，没有跨头文件解析、宏展开、完整类型推导或运行时数据流。因此 `count=0` 表示本次选中的检查没有发现问题，算法输出仍由运行测试验证。
